@@ -1,6 +1,8 @@
 package com.jhainusa.video_collage.di
 
 import android.content.Context
+import com.jhainusa.video_collage.core.facedetection.FrameFaceDetector
+import com.jhainusa.video_collage.core.facedetection.MlKitFrameFaceDetector
 import com.jhainusa.video_collage.core.video.MediaMetadataFrameExtractor
 import com.jhainusa.video_collage.core.video.VideoFrameExtractor
 
@@ -11,6 +13,10 @@ import com.jhainusa.video_collage.core.video.VideoFrameExtractor
 class AppContainer(private val context: Context) {
     val videoFrameExtractor: VideoFrameExtractor by lazy {
         MediaMetadataFrameExtractor(context)
+    }
+
+    val faceDetector: FrameFaceDetector by lazy {
+        MlKitFrameFaceDetector()
     }
 
     // TODO: Add other pipeline components as they are implemented

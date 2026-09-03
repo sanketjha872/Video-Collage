@@ -53,6 +53,7 @@ dependencies {
         exclude(group = "com.google.ai.edge.litert", module = "litert-support-api")
     }
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.play.services)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
