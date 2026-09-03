@@ -46,12 +46,15 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.mlkit.face.detection)
-    implementation(libs.litert) {
-        exclude(group = "com.google.ai.edge.litert", module = "litert-api")
-    }
-    implementation(libs.litert.support) {
-        exclude(group = "com.google.ai.edge.litert", module = "litert-support-api")
-    }
+    implementation("org.tensorflow:tensorflow-lite:2.14.0")
+    implementation("org.tensorflow:tensorflow-lite-support:0.4.4")
+    // LiteRT commented out to avoid manifest merger blocker for now while building embedding logic
+    // implementation(libs.litert) {
+    //    exclude(group = "com.google.ai.edge.litert", module = "litert-api")
+    // }
+    // implementation(libs.litert.support) {
+    //    exclude(group = "com.google.ai.edge.litert", module = "litert-support-api")
+    // }
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.play.services)
     testImplementation(libs.junit)

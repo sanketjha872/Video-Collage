@@ -3,6 +3,7 @@ package com.jhainusa.video_collage.presentation.viewmodel
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jhainusa.video_collage.core.embedding.FaceEmbedder
 import com.jhainusa.video_collage.core.facedetection.FrameFaceDetector
 import com.jhainusa.video_collage.core.video.VideoFrameExtractor
 import com.jhainusa.video_collage.domain.model.ProcessingState
@@ -12,7 +13,8 @@ import kotlinx.coroutines.launch
 
 class ProcessingViewModel(
     private val videoFrameExtractor: VideoFrameExtractor,
-    private val faceDetector: FrameFaceDetector
+    private val faceDetector: FrameFaceDetector,
+    private val faceEmbedder: FaceEmbedder
 ) : ViewModel() {
     private val _processingState = MutableStateFlow<ProcessingState>(ProcessingState.Idle)
     val processingState: StateFlow<ProcessingState> = _processingState
@@ -42,7 +44,16 @@ class ProcessingViewModel(
                     return@launch
                 }
 
-                // TODO: Next steps - Generate embeddings, cluster, etc.
+                // 3. Embedding Generation
+                _processingState.value = ProcessingState.GeneratingEmbeddings(0f)
+                val detectionsWithEmbeddings = allDetections.mapIndexed { index, detection ->
+                    val embedding = faceEmbedder.embed(detection.sourceFrame)
+                    val updated = detection.copy(embedding = embedding)
+                    _processingState.value = ProcessingState.GeneratingEmbeddings((index + 1).toFloat() / allDetections.size)
+                    updated
+                }
+
+                // TODO: Next steps - clustering, etc.
                 
             } catch (e: Exception) {
                 _processingState.value = ProcessingState.Error(e.message ?: "An unknown error occurred")
