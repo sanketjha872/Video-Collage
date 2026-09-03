@@ -5,6 +5,7 @@ import com.jhainusa.video_collage.core.embedding.FaceEmbedder
 import com.jhainusa.video_collage.core.embedding.MobileFaceNetEmbedder
 import com.jhainusa.video_collage.core.facedetection.FrameFaceDetector
 import com.jhainusa.video_collage.core.facedetection.MlKitFrameFaceDetector
+import com.jhainusa.video_collage.core.quality.FaceQualityScorer
 import com.jhainusa.video_collage.core.video.MediaMetadataFrameExtractor
 import com.jhainusa.video_collage.core.video.VideoFrameExtractor
 
@@ -23,6 +24,10 @@ class AppContainer(private val context: Context) {
 
     val faceEmbedder: FaceEmbedder by lazy {
         MobileFaceNetEmbedder(context)
+    }
+
+    val faceQualityScorer: FaceQualityScorer by lazy {
+        FaceQualityScorer()
     }
 
     // TODO: Add other pipeline components as they are implemented

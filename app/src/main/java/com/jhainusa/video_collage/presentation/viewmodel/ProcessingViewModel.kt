@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jhainusa.video_collage.core.embedding.FaceEmbedder
 import com.jhainusa.video_collage.core.facedetection.FrameFaceDetector
+import com.jhainusa.video_collage.core.quality.FaceQualityScorer
 import com.jhainusa.video_collage.core.video.VideoFrameExtractor
 import com.jhainusa.video_collage.domain.model.ProcessingState
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,7 +15,8 @@ import kotlinx.coroutines.launch
 class ProcessingViewModel(
     private val videoFrameExtractor: VideoFrameExtractor,
     private val faceDetector: FrameFaceDetector,
-    private val faceEmbedder: FaceEmbedder
+    private val faceEmbedder: FaceEmbedder,
+    private val qualityScorer: FaceQualityScorer
 ) : ViewModel() {
     private val _processingState = MutableStateFlow<ProcessingState>(ProcessingState.Idle)
     val processingState: StateFlow<ProcessingState> = _processingState
@@ -33,28 +35,44 @@ class ProcessingViewModel(
                     return@launch
                 }
 
+                val frameWidth = frames[0].second.width
+                val frameHeight = frames[0].second.height
+
                 // 2. Face Detection
                 _processingState.value = ProcessingState.DetectingFaces(0f)
-                val allDetections = faceDetector.detectFaces(frames) { progress ->
+                val detections = faceDetector.detectFaces(frames) { progress ->
                     _processingState.value = ProcessingState.DetectingFaces(progress)
                 }
 
-                if (allDetections.isEmpty()) {
+                if (detections.isEmpty()) {
                     _processingState.value = ProcessingState.Error("No faces detected in the video.")
                     return@launch
                 }
 
-                // 3. Embedding Generation
+                // 3. Quality Scoring & Embedding Generation
                 _processingState.value = ProcessingState.GeneratingEmbeddings(0f)
-                val detectionsWithEmbeddings = allDetections.mapIndexed { index, detection ->
+                val processedDetections = detections.mapIndexed { index, detection ->
+                    // Score quality
+                    val quality = qualityScorer.score(detection, frameWidth, frameHeight)
+                    
+                    // Generate embedding
                     val embedding = faceEmbedder.embed(detection.sourceFrame)
-                    val updated = detection.copy(embedding = embedding)
-                    _processingState.value = ProcessingState.GeneratingEmbeddings((index + 1).toFloat() / allDetections.size)
+                    
+                    val updated = detection.copy(
+                        qualityScore = quality,
+                        embedding = embedding
+                    )
+                    
+                    _processingState.value = ProcessingState.GeneratingEmbeddings((index + 1).toFloat() / detections.size)
                     updated
                 }
 
-                // TODO: Next steps - clustering, etc.
+                // TODO: 4. Clustering Identities
+                _processingState.value = ProcessingState.ClusteringIdentities
                 
+                // TODO: 5. Building Collage
+                _processingState.value = ProcessingState.BuildingCollage
+
             } catch (e: Exception) {
                 _processingState.value = ProcessingState.Error(e.message ?: "An unknown error occurred")
             }
