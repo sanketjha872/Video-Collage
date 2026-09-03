@@ -1,6 +1,11 @@
 package com.jhainusa.video_collage.di
 
 import android.content.Context
+import com.jhainusa.video_collage.core.clustering.AppearanceSegmenter
+import com.jhainusa.video_collage.core.clustering.CosineHacPersonClusterer
+import com.jhainusa.video_collage.core.clustering.PersonClusterer
+import com.jhainusa.video_collage.core.clustering.TrackingBasedAppearanceSegmenter
+import com.jhainusa.video_collage.core.collage.CollageRenderer
 import com.jhainusa.video_collage.core.embedding.FaceEmbedder
 import com.jhainusa.video_collage.core.embedding.MobileFaceNetEmbedder
 import com.jhainusa.video_collage.core.facedetection.FrameFaceDetector
@@ -8,6 +13,7 @@ import com.jhainusa.video_collage.core.facedetection.MlKitFrameFaceDetector
 import com.jhainusa.video_collage.core.quality.FaceQualityScorer
 import com.jhainusa.video_collage.core.video.MediaMetadataFrameExtractor
 import com.jhainusa.video_collage.core.video.VideoFrameExtractor
+import com.jhainusa.video_collage.domain.usecase.ProcessVideoUseCase
 
 /**
  * Dependency provider for the application.
@@ -30,9 +36,27 @@ class AppContainer(private val context: Context) {
         FaceQualityScorer()
     }
 
-    // TODO: Add other pipeline components as they are implemented
-    // val faceDetector: FrameFaceDetector by lazy { ... }
-    // val faceEmbedder: FaceEmbedder by lazy { ... }
-    // val appearanceSegmenter: AppearanceSegmenter by lazy { ... }
-    // val personClusterer: PersonClusterer by lazy { ... }
+    val appearanceSegmenter: AppearanceSegmenter by lazy {
+        TrackingBasedAppearanceSegmenter()
+    }
+
+    val personClusterer: PersonClusterer by lazy {
+        CosineHacPersonClusterer()
+    }
+
+    val collageRenderer: CollageRenderer by lazy {
+        CollageRenderer()
+    }
+
+    val processVideoUseCase: ProcessVideoUseCase by lazy {
+        ProcessVideoUseCase(
+            videoFrameExtractor,
+            faceDetector,
+            faceEmbedder,
+            faceQualityScorer,
+            appearanceSegmenter,
+            personClusterer,
+            collageRenderer
+        )
+    }
 }

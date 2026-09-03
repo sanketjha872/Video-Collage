@@ -36,6 +36,7 @@ litert = { group = "com.google.ai.edge.litert", name = "litert", version.ref = "
 litert-support = { group = "com.google.ai.edge.litert", name = "litert-support", version.ref = "litertSupport" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutinesAndroid" }
 kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "playServicesCoroutines" }
+androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
