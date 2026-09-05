@@ -1,8 +1,12 @@
 package com.jhainusa.video_collage.presentation.ui
 
+import android.content.ContentValues
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Build
+import android.provider.MediaStore
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -109,36 +113,6 @@ fun PickerScreen(onVideoSelected: (Uri) -> Unit) {
         ) {
             Text("Select Video from Storage")
         }
-        
-        Spacer(modifier = Modifier.height(24.dp))
-        
-        HorizontalDivider()
-        
-        Spacer(modifier = Modifier.height(24.dp))
-        
-        Text(
-            text = "Testing Quick Access",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary
-        )
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            // Note: These are stubs for testing with specific local files if available
-            OutlinedButton(onClick = { /* TODO: Use specific test URI */ }, modifier = Modifier.weight(1f)) {
-                Text("Clip 1")
-            }
-            OutlinedButton(onClick = { /* TODO: Use specific test URI */ }, modifier = Modifier.weight(1f)) {
-                Text("Clip 2")
-            }
-            OutlinedButton(onClick = { /* TODO: Use specific test URI */ }, modifier = Modifier.weight(1f)) {
-                Text("Clip 3")
-            }
-        }
     }
 }
 
@@ -237,6 +211,14 @@ fun ProcessingScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
                     Text("Retry")
+                }
+            } else if (state !is ProcessingState.Complete && state !is ProcessingState.Idle) {
+                Spacer(modifier = Modifier.height(48.dp))
+                OutlinedButton(
+                    onClick = onErrorRetry, // This goes back to picker as per MainActivity
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Cancel")
                 }
             }
         }
@@ -388,7 +370,7 @@ fun ResultScreen(viewModel: ProcessingViewModel, onRestart: () -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     OutlinedButton(
-                        onClick = { /* TODO: Implement Save to Gallery */ },
+                        onClick = { saveCollageToGallery(context, completeState.collage) },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(8.dp)
                     ) {
@@ -483,11 +465,11 @@ private fun shareCollage(context: android.content.Context, bitmap: Bitmap) {
     try {
         val cachePath = File(context.cacheDir, "images")
         cachePath.mkdirs()
-        val stream = FileOutputStream("$cachePath/collage.png")
+        val imageFile = File(cachePath, "collage.png")
+        val stream = FileOutputStream(imageFile)
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
         stream.close()
 
-        val imageFile = File(cachePath, "collage.png")
         val contentUri = FileProvider.getUriForFile(
             context,
             "${context.packageName}.fileprovider",
@@ -506,5 +488,44 @@ private fun shareCollage(context: android.content.Context, bitmap: Bitmap) {
         }
     } catch (e: Exception) {
         e.printStackTrace()
+        Toast.makeText(context, "Failed to share collage", Toast.LENGTH_SHORT).show()
+    }
+}
+
+private fun saveCollageToGallery(context: android.content.Context, bitmap: Bitmap) {
+    val filename = "FaceCollage_${System.currentTimeMillis()}.png"
+    val contentValues = ContentValues().apply {
+        put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+        put(MediaStore.MediaColumns.MIME_TYPE, "image/png")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            put(MediaStore.MediaColumns.RELATIVE_PATH, "Pictures/VideoCollage")
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+        }
+    }
+
+    val contentResolver = context.contentResolver
+    val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+
+    uri?.let {
+        try {
+            contentResolver.openOutputStream(it)?.use { stream ->
+                if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)) {
+                    throw Exception("Failed to compress bitmap")
+                }
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                contentValues.clear()
+                contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                contentResolver.update(uri, contentValues, null, null)
+            }
+            Toast.makeText(context, "Saved to Gallery", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            contentResolver.delete(uri, null, null)
+            Toast.makeText(context, "Failed to save image", Toast.LENGTH_SHORT).show()
+        }
+    } ?: run {
+        Toast.makeText(context, "Failed to create MediaStore entry", Toast.LENGTH_SHORT).show()
     }
 }

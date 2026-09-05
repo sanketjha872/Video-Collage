@@ -40,6 +40,7 @@ class MlKitFrameFaceDetector : FrameFaceDetector {
                     
                     val frameDetections = mlKitFaces.map { face ->
                         val generousCrop = createGenerousCrop(bitmap, face.boundingBox)
+                        val tightCrop = createTightCrop(bitmap, face.boundingBox)
                         
                         DomainFaceDetection(
                             frameTimestampMs = timestampMs,
@@ -52,6 +53,7 @@ class MlKitFrameFaceDetector : FrameFaceDetector {
                             smilingProbability = face.smilingProbability,
                             embedding = null,
                             qualityScore = null,
+                            faceCrop = tightCrop,
                             sourceFrame = generousCrop
                         )
                     }
@@ -84,6 +86,30 @@ class MlKitFrameFaceDetector : FrameFaceDetector {
         
         // Expand by 70% in each direction
         val expansionFactor = 0.7f
+        val deltaW = (width * expansionFactor).toInt()
+        val deltaH = (height * expansionFactor).toInt()
+        
+        val left = max(0, boundingBox.left - deltaW)
+        val top = max(0, boundingBox.top - deltaH)
+        val right = min(bitmap.width, boundingBox.right + deltaW)
+        val bottom = min(bitmap.height, boundingBox.bottom + deltaH)
+        
+        val cropWidth = right - left
+        val cropHeight = bottom - top
+        
+        return Bitmap.createBitmap(bitmap, left, top, cropWidth, cropHeight)
+    }
+
+    /**
+     * Creates a tight crop around the detected face bounding box.
+     * Expands the box by 10% in each direction to ensure the full face is captured.
+     */
+    private fun createTightCrop(bitmap: Bitmap, boundingBox: Rect): Bitmap {
+        val width = boundingBox.width()
+        val height = boundingBox.height()
+        
+        // Expand by 10% in each direction for embedding context
+        val expansionFactor = 0.1f
         val deltaW = (width * expansionFactor).toInt()
         val deltaH = (height * expansionFactor).toInt()
         

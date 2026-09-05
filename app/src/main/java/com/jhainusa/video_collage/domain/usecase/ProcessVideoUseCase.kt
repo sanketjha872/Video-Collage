@@ -63,7 +63,7 @@ class ProcessVideoUseCase(
             send(ProcessingState.GeneratingEmbeddings(0f))
             val processedDetections = detections.mapIndexed { index, detection ->
                 // Generate embedding first as per sequence suggestion
-                val embedding = faceEmbedder.embed(detection.sourceFrame)
+                val embedding = faceEmbedder.embed(detection.faceCrop)
                 
                 // Then score quality
                 val quality = qualityScorer.score(detection, frameWidth, frameHeight)

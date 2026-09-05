@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import android.os.Build
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -54,13 +55,36 @@ class MediaMetadataFrameExtractor(private val context: Context) : VideoFrameExtr
             for (timeMs in 0 until durationMs step VideoFrameExtractor.FRAME_SAMPLE_INTERVAL_MS) {
                 try {
                     // MediaMetadataRetriever uses microseconds
-                    val bitmap = retriever.getFrameAtTime(
-                        timeMs * 1000,
-                        MediaMetadataRetriever.OPTION_CLOSEST
-                    )
+                    val bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                        // Attempt to get a scaled frame to save memory (API 27+)
+                        // Target a max dimension of 720px
+                        retriever.getScaledFrameAtTime(
+                            timeMs * 1000,
+                            MediaMetadataRetriever.OPTION_CLOSEST,
+                            720,
+                            720
+                        )
+                    } else {
+                        retriever.getFrameAtTime(
+                            timeMs * 1000,
+                            MediaMetadataRetriever.OPTION_CLOSEST
+                        )
+                    }
                     
                     if (bitmap != null) {
-                        frames.add(timeMs to bitmap)
+                        // If we couldn't use getScaledFrameAtTime or need further downscaling
+                        val processedBitmap = if (bitmap.width > 720 || bitmap.height > 720) {
+                            val scale = 720f / maxOf(bitmap.width, bitmap.height)
+                            Bitmap.createScaledBitmap(
+                                bitmap,
+                                (bitmap.width * scale).toInt(),
+                                (bitmap.height * scale).toInt(),
+                                true
+                            )
+                        } else {
+                            bitmap
+                        }
+                        frames.add(timeMs to processedBitmap)
                     } else {
                         Log.w(TAG, "Failed to decode frame at $timeMs ms")
                     }

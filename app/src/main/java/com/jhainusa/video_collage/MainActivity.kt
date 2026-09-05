@@ -54,10 +54,11 @@ class MainActivity : ComponentActivity() {
                                 viewModel = viewModel,
                                 onProcessingComplete = {
                                     navController.navigate("result") {
-                                        popUpTo("picker")
+                                        popUpTo("processing/{videoUri}") { inclusive = true }
                                     }
                                 },
                                 onErrorRetry = {
+                                    viewModel.reset()
                                     navController.navigate("picker") {
                                         popUpTo("picker") { inclusive = true }
                                     }
@@ -68,6 +69,7 @@ class MainActivity : ComponentActivity() {
                             ResultScreen(
                                 viewModel = viewModel,
                                 onRestart = {
+                                    viewModel.reset()
                                     navController.navigate("picker") {
                                         popUpTo("picker") { inclusive = true }
                                     }

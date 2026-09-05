@@ -27,7 +27,9 @@ data class FaceDetection(
     val embedding: FloatArray?,
     /** Aggregated quality score based on frontality, sharpness, eyes-open, and smile. Filled in later by QualityScorer. */
     val qualityScore: Float?,
-    /** The source frame from the video. Requirement: full frame or generous crop, NOT a tight bbox crop. */
+    /** A tight crop of the face, used for generating embeddings. */
+    val faceCrop: Bitmap,
+    /** The source frame from the video or a generous crop for display. */
     val sourceFrame: Bitmap
 ) {
     override fun equals(other: Any?): Boolean {

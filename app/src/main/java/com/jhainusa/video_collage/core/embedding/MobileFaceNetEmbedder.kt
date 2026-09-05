@@ -21,7 +21,11 @@ class MobileFaceNetEmbedder(context: Context) : FaceEmbedder {
     private val embeddingSize: Int
 
     init {
-        val model = FileUtil.loadMappedFile(context, MODEL_PATH)
+        val model = try {
+            FileUtil.loadMappedFile(context, MODEL_PATH)
+        } catch (e: Exception) {
+            throw Exception("Failed to load TFLite model '$MODEL_PATH'. Ensure it is in the assets folder. Error: ${e.message}")
+        }
         val options = Interpreter.Options().apply {
             setNumThreads(NUM_THREADS)
         }
