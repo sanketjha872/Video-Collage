@@ -1,7 +1,10 @@
 package com.jhainusa.video_collage.presentation.ui
 
+import android.Manifest
 import android.content.ContentValues
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
@@ -37,7 +40,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -57,6 +59,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.jhainusa.video_collage.domain.model.Person
 import com.jhainusa.video_collage.domain.model.ProcessingState
@@ -215,7 +218,7 @@ fun ProcessingScreen(
             } else if (state !is ProcessingState.Complete && state !is ProcessingState.Idle) {
                 Spacer(modifier = Modifier.height(48.dp))
                 OutlinedButton(
-                    onClick = onErrorRetry, // This goes back to picker as per MainActivity
+                    onClick = onErrorRetry,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Cancel")
@@ -303,6 +306,18 @@ fun ResultScreen(viewModel: ProcessingViewModel, onRestart: () -> Unit) {
     val state by viewModel.processingState.collectAsState()
     val context = LocalContext.current
 
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            (state as? ProcessingState.Complete)?.collage?.let {
+                saveCollageToGallery(context, it)
+            }
+        } else {
+            Toast.makeText(context, "Storage permission is required to save to gallery.", Toast.LENGTH_LONG).show()
+        }
+    }
+
     if (state !is ProcessingState.Complete) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -370,7 +385,14 @@ fun ResultScreen(viewModel: ProcessingViewModel, onRestart: () -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     OutlinedButton(
-                        onClick = { saveCollageToGallery(context, completeState.collage) },
+                        onClick = {
+                            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P && 
+                                ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                                permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                            } else {
+                                saveCollageToGallery(context, completeState.collage)
+                            }
+                        },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(8.dp)
                     ) {
@@ -461,14 +483,14 @@ fun PersonListItem(index: Int, person: Person) {
     }
 }
 
-private fun shareCollage(context: android.content.Context, bitmap: Bitmap) {
+private fun shareCollage(context: Context, bitmap: Bitmap) {
     try {
         val cachePath = File(context.cacheDir, "images")
         cachePath.mkdirs()
-        val imageFile = File(cachePath, "collage.png")
-        val stream = FileOutputStream(imageFile)
-        bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
-        stream.close()
+        val imageFile = File(cachePath, "collage_share.jpg")
+        FileOutputStream(imageFile).use { stream ->
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, stream)
+        }
 
         val contentUri = FileProvider.getUriForFile(
             context,
@@ -476,30 +498,27 @@ private fun shareCollage(context: android.content.Context, bitmap: Bitmap) {
             imageFile
         )
 
-        if (contentUri != null) {
-            val shareIntent = Intent().apply {
-                action = Intent.ACTION_SEND
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                setDataAndType(contentUri, context.contentResolver.getType(contentUri))
-                putExtra(Intent.EXTRA_STREAM, contentUri)
-                type = "image/png"
-            }
-            context.startActivity(Intent.createChooser(shareIntent, "Share Collage"))
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "image/jpeg"
+            putExtra(Intent.EXTRA_STREAM, contentUri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
+        context.startActivity(Intent.createChooser(shareIntent, "Share Collage"))
     } catch (e: Exception) {
         e.printStackTrace()
         Toast.makeText(context, "Failed to share collage", Toast.LENGTH_SHORT).show()
     }
 }
 
-private fun saveCollageToGallery(context: android.content.Context, bitmap: Bitmap) {
-    val filename = "FaceCollage_${System.currentTimeMillis()}.png"
+private fun saveCollageToGallery(context: Context, bitmap: Bitmap) {
+    val timestamp = System.currentTimeMillis()
+    val filename = "collage_$timestamp.jpg"
+    
     val contentValues = ContentValues().apply {
-        put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
-        put(MediaStore.MediaColumns.MIME_TYPE, "image/png")
+        put(MediaStore.Images.Media.DISPLAY_NAME, filename)
+        put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            put(MediaStore.MediaColumns.RELATIVE_PATH, "Pictures/VideoCollage")
-            put(MediaStore.MediaColumns.IS_PENDING, 1)
+            put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/VideoCollage")
         }
     }
 
@@ -509,20 +528,13 @@ private fun saveCollageToGallery(context: android.content.Context, bitmap: Bitma
     uri?.let {
         try {
             contentResolver.openOutputStream(it)?.use { stream ->
-                if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)) {
+                if (!bitmap.compress(Bitmap.CompressFormat.JPEG, 95, stream)) {
                     throw Exception("Failed to compress bitmap")
                 }
             }
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                contentValues.clear()
-                contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
-                contentResolver.update(uri, contentValues, null, null)
-            }
-            Toast.makeText(context, "Saved to Gallery", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Saved to gallery!", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             e.printStackTrace()
-            contentResolver.delete(uri, null, null)
             Toast.makeText(context, "Failed to save image", Toast.LENGTH_SHORT).show()
         }
     } ?: run {
