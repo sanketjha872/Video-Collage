@@ -51,7 +51,6 @@ class MlKitFrameFaceDetector : FrameFaceDetector {
                             leftEyeOpenProbability = face.leftEyeOpenProbability,
                             rightEyeOpenProbability = face.rightEyeOpenProbability,
                             smilingProbability = face.smilingProbability,
-                            embedding = null,
                             qualityScore = null,
                             faceCrop = tightCrop,
                             sourceFrame = generousCrop

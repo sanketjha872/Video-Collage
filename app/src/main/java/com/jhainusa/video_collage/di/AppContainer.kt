@@ -1,13 +1,7 @@
 package com.jhainusa.video_collage.di
 
 import android.content.Context
-import com.jhainusa.video_collage.core.clustering.AppearanceSegmenter
-import com.jhainusa.video_collage.core.clustering.CosineHacPersonClusterer
-import com.jhainusa.video_collage.core.clustering.PersonClusterer
-import com.jhainusa.video_collage.core.clustering.TrackingBasedAppearanceSegmenter
 import com.jhainusa.video_collage.core.collage.CollageRenderer
-import com.jhainusa.video_collage.core.embedding.FaceEmbedder
-import com.jhainusa.video_collage.core.embedding.MobileFaceNetEmbedder
 import com.jhainusa.video_collage.core.facedetection.FrameFaceDetector
 import com.jhainusa.video_collage.core.facedetection.MlKitFrameFaceDetector
 import com.jhainusa.video_collage.core.quality.FaceQualityScorer
@@ -28,20 +22,8 @@ class AppContainer(private val context: Context) {
         MlKitFrameFaceDetector()
     }
 
-    val faceEmbedder: FaceEmbedder by lazy {
-        MobileFaceNetEmbedder(context)
-    }
-
     val faceQualityScorer: FaceQualityScorer by lazy {
         FaceQualityScorer()
-    }
-
-    val appearanceSegmenter: AppearanceSegmenter by lazy {
-        TrackingBasedAppearanceSegmenter()
-    }
-
-    val personClusterer: PersonClusterer by lazy {
-        CosineHacPersonClusterer()
     }
 
     val collageRenderer: CollageRenderer by lazy {
@@ -52,10 +34,7 @@ class AppContainer(private val context: Context) {
         ProcessVideoUseCase(
             videoFrameExtractor,
             faceDetector,
-            faceEmbedder,
             faceQualityScorer,
-            appearanceSegmenter,
-            personClusterer,
             collageRenderer
         )
     }

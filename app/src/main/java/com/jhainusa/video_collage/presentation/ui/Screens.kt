@@ -160,18 +160,14 @@ fun ProcessingScreen(
             val stages = listOf(
                 "Extracting Frames",
                 "Detecting Faces",
-                "Generating Embeddings",
-                "Clustering Identities",
                 "Building Collage"
             )
 
             val currentStageIndex = when (state) {
                 is ProcessingState.ExtractingFrames -> 0
                 is ProcessingState.DetectingFaces -> 1
-                is ProcessingState.GeneratingEmbeddings -> 2
-                is ProcessingState.ClusteringIdentities -> 3
-                is ProcessingState.BuildingCollage -> 4
-                is ProcessingState.Complete -> 5
+                is ProcessingState.BuildingCollage -> 2
+                is ProcessingState.Complete -> 3
                 else -> -1
             }
 
@@ -184,7 +180,6 @@ fun ProcessingScreen(
                         when (val s = state) {
                             is ProcessingState.ExtractingFrames -> s.progress
                             is ProcessingState.DetectingFaces -> s.progress
-                            is ProcessingState.GeneratingEmbeddings -> s.progress
                             else -> null
                         }
                     } else null

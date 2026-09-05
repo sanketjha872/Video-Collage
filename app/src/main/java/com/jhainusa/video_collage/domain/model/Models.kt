@@ -23,11 +23,9 @@ data class FaceDetection(
     val rightEyeOpenProbability: Float?,
     /** Probability that the person is smiling [0, 1]. */
     val smilingProbability: Float?,
-    /** Feature vector representing the face, used for identity clustering. Filled in later by FaceEmbedder. */
-    val embedding: FloatArray?,
     /** Aggregated quality score based on frontality, sharpness, eyes-open, and smile. Filled in later by QualityScorer. */
     val qualityScore: Float?,
-    /** A tight crop of the face, used for generating embeddings. */
+    /** A tight crop of the face. */
     val faceCrop: Bitmap,
     /** The source frame from the video or a generous crop for display. */
     val sourceFrame: Bitmap
@@ -47,33 +45,18 @@ data class FaceDetection(
 }
 
 /**
- * Represents a continuous visible segment of a person in the video.
- * An appearance starts when a person's face becomes clearly visible and ends when it's no longer visible.
- */
-data class Appearance(
-    val id: String,
-    /** The tracking ID from the detector that defines this continuous segment. */
-    val trackingId: Int?,
-    val startMs: Long,
-    val endMs: Long,
-    /** All detections that make up this continuous appearance. */
-    val detections: List<FaceDetection>,
-    /** The embedding of the highest quality detection in this segment, used for cross-segment clustering. */
-    val representativeEmbedding: FloatArray,
-    /** The detection with the highest quality score in this segment. */
-    val bestDetection: FaceDetection
-)
-
-/**
- * Represents a unique person identified across multiple separate appearances in the video.
+ * Represents a unique person identified in the video.
+ * Simplified for now to just group detections by tracking ID.
  */
 data class Person(
     val id: String,
-    /** List of separate appearances of this same person (e.g. leaves frame, comes back later). */
-    val appearances: List<Appearance>,
-    /** Total number of separate appearances. */
+    /** The tracking ID from the detector. */
+    val trackingId: Int?,
+    /** All detections of this person. */
+    val detections: List<FaceDetection>,
+    /** Total number of detections (frames where this person appeared). */
     val appearanceCount: Int,
-    /** The best representative shot for this person across all their appearances. */
+    /** The best representative shot for this person. */
     val representativeShot: Bitmap,
     /** The quality score of the representative shot. */
     val representativeQualityScore: Float
@@ -86,8 +69,6 @@ sealed class ProcessingState {
     object Idle : ProcessingState()
     data class ExtractingFrames(val progress: Float) : ProcessingState()
     data class DetectingFaces(val progress: Float) : ProcessingState()
-    data class GeneratingEmbeddings(val progress: Float) : ProcessingState()
-    object ClusteringIdentities : ProcessingState()
     object BuildingCollage : ProcessingState()
     data class Complete(val persons: List<Person>, val collage: Bitmap) : ProcessingState()
     data class Error(val message: String) : ProcessingState()
