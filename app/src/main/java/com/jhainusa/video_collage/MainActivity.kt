@@ -56,6 +56,11 @@ class MainActivity : ComponentActivity() {
                                     navController.navigate("result") {
                                         popUpTo("picker")
                                     }
+                                },
+                                onErrorRetry = {
+                                    navController.navigate("picker") {
+                                        popUpTo("picker") { inclusive = true }
+                                    }
                                 }
                             )
                         }

@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,15 +18,27 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,33 +46,98 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import com.jhainusa.video_collage.domain.model.Person
 import com.jhainusa.video_collage.domain.model.ProcessingState
 import com.jhainusa.video_collage.presentation.viewmodel.ProcessingViewModel
 import java.io.File
 import java.io.FileOutputStream
+import java.util.Locale
 
 @Composable
 fun PickerScreen(onVideoSelected: (Uri) -> Unit) {
     val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+        contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         uri?.let { onVideoSelected(it) }
     }
 
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Video Face Collage", style = MaterialTheme.typography.headlineMedium)
-        Spacer(modifier = Modifier.height(32.dp))
-        Button(onClick = { launcher.launch("video/*") }) {
-            Text("Select Video")
+        Icon(
+            imageVector = Icons.Default.VideoLibrary,
+            contentDescription = null,
+            modifier = Modifier.size(100.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        Text(
+            text = "Video Face Collage",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold
+        )
+        
+        Text(
+            text = "Process portrait videos to detect and cluster unique faces.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+        
+        Spacer(modifier = Modifier.height(48.dp))
+        
+        Button(
+            onClick = { launcher.launch(arrayOf("video/*")) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+        ) {
+            Text("Select Video from Storage")
+        }
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        HorizontalDivider()
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        Text(
+            text = "Testing Quick Access",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Note: These are stubs for testing with specific local files if available
+            OutlinedButton(onClick = { /* TODO: Use specific test URI */ }, modifier = Modifier.weight(1f)) {
+                Text("Clip 1")
+            }
+            OutlinedButton(onClick = { /* TODO: Use specific test URI */ }, modifier = Modifier.weight(1f)) {
+                Text("Clip 2")
+            }
+            OutlinedButton(onClick = { /* TODO: Use specific test URI */ }, modifier = Modifier.weight(1f)) {
+                Text("Clip 3")
+            }
         }
     }
 }
@@ -68,7 +146,8 @@ fun PickerScreen(onVideoSelected: (Uri) -> Unit) {
 fun ProcessingScreen(
     videoUri: Uri,
     viewModel: ProcessingViewModel,
-    onProcessingComplete: () -> Unit
+    onProcessingComplete: () -> Unit,
+    onErrorRetry: () -> Unit
 ) {
     val state by viewModel.processingState.collectAsState()
 
@@ -82,23 +161,157 @@ fun ProcessingScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            CircularProgressIndicator(modifier = Modifier.size(64.dp))
-            Spacer(modifier = Modifier.height(16.dp))
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = "Processing Video",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
             
-            val statusText = when (val s = state) {
-                is ProcessingState.Idle -> "Preparing..."
-                is ProcessingState.ExtractingFrames -> "Extracting frames... ${(s.progress * 100).toInt()}%"
-                is ProcessingState.DetectingFaces -> "Detecting faces... ${(s.progress * 100).toInt()}%"
-                is ProcessingState.GeneratingEmbeddings -> "Analyzing faces... ${(s.progress * 100).toInt()}%"
-                is ProcessingState.ClusteringIdentities -> "Identifying persons..."
-                is ProcessingState.BuildingCollage -> "Building collage..."
-                is ProcessingState.Complete -> "Finished!"
-                is ProcessingState.Error -> "Error: ${s.message}"
+            Spacer(modifier = Modifier.height(32.dp))
+
+            val stages = listOf(
+                "Extracting Frames",
+                "Detecting Faces",
+                "Generating Embeddings",
+                "Clustering Identities",
+                "Building Collage"
+            )
+
+            val currentStageIndex = when (state) {
+                is ProcessingState.ExtractingFrames -> 0
+                is ProcessingState.DetectingFaces -> 1
+                is ProcessingState.GeneratingEmbeddings -> 2
+                is ProcessingState.ClusteringIdentities -> 3
+                is ProcessingState.BuildingCollage -> 4
+                is ProcessingState.Complete -> 5
+                else -> -1
+            }
+
+            stages.forEachIndexed { index, stage ->
+                StageItem(
+                    label = stage,
+                    isActive = index == currentStageIndex,
+                    isCompleted = index < currentStageIndex,
+                    progress = if (index == currentStageIndex) {
+                        when (val s = state) {
+                            is ProcessingState.ExtractingFrames -> s.progress
+                            is ProcessingState.DetectingFaces -> s.progress
+                            is ProcessingState.GeneratingEmbeddings -> s.progress
+                            else -> null
+                        }
+                    } else null
+                )
+                if (index < stages.size - 1) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+            }
+
+            if (state is ProcessingState.Error) {
+                Spacer(modifier = Modifier.height(32.dp))
+                Icon(
+                    imageVector = Icons.Default.Error,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(48.dp)
+                )
+                Text(
+                    text = (state as ProcessingState.Error).message,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+                Button(
+                    onClick = onErrorRetry,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Retry")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun StageItem(
+    label: String,
+    isActive: Boolean,
+    isCompleted: Boolean,
+    progress: Float?
+) {
+    val color = when {
+        isCompleted -> MaterialTheme.colorScheme.primary
+        isActive -> MaterialTheme.colorScheme.secondary
+        else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+    }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(color),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isCompleted) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                } else if (isActive) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = Color.White
+                    )
+                }
             }
             
-            Text(statusText, style = MaterialTheme.typography.bodyLarge)
+            Spacer(modifier = Modifier.width(12.dp))
+            
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge,
+                color = color,
+                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
+            )
+            
+            if (isActive && progress != null) {
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = "${(progress * 100).toInt()}%",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = color
+                )
+            }
+        }
+        
+        if (isActive && progress != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 36.dp)
+                    .clip(RoundedCornerShape(2.dp)),
+            )
         }
     }
 }
@@ -108,71 +321,159 @@ fun ResultScreen(viewModel: ProcessingViewModel, onRestart: () -> Unit) {
     val state by viewModel.processingState.collectAsState()
     val context = LocalContext.current
 
-    Column(
+    if (state !is ProcessingState.Complete) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("No result available.")
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(onClick = onRestart) {
+                    Text("Go Back")
+                }
+            }
+        }
+        return
+    }
+
+    val completeState = state as ProcessingState.Complete
+
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .background(MaterialTheme.colorScheme.background)
+            .padding(horizontal = 16.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        if (state is ProcessingState.Complete) {
-            val completeState = state as ProcessingState.Complete
-            
+        item {
             Text(
-                "Identity Collage", 
+                text = "Identity Collage",
                 style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
             )
-            Text(
-                "Found ${completeState.persons.size} unique faces", 
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            Image(
-                bitmap = completeState.collage.asImageBitmap(),
-                contentDescription = "Face Collage",
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                contentScale = ContentScale.Fit
-            )
-            
-            Spacer(modifier = Modifier.height(24.dp))
+        }
 
-            Row(
+        item {
+            Card(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                shape = RoundedCornerShape(12.dp)
             ) {
-                OutlinedButton(
-                    onClick = onRestart,
-                    modifier = Modifier.weight(1f),
-                    contentPadding = ButtonDefaults.ContentPadding
-                ) {
-                    Icon(Icons.Default.Refresh, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("New Video")
-                }
-                
+                Image(
+                    bitmap = completeState.collage.asImageBitmap(),
+                    contentDescription = "Face Collage",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(300.dp),
+                    contentScale = ContentScale.Fit
+                )
+            }
+        }
+
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(
                     onClick = { shareCollage(context, completeState.collage) },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp)
                 ) {
                     Icon(Icons.Default.Share, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
-                    Text("Share")
+                    Text("Share Collage")
                 }
-            }
-        } else {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("No result available.")
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(onClick = onRestart) {
-                        Text("Go Back")
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { /* TODO: Implement Save to Gallery */ },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Save to Gallery")
+                    }
+
+                    OutlinedButton(
+                        onClick = onRestart,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("New Video")
                     }
                 }
+            }
+        }
+
+        item {
+            Text(
+                text = "Identified Persons",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp)
+            )
+        }
+
+        itemsIndexed(completeState.persons) { index, person ->
+            PersonListItem(index + 1, person)
+        }
+    }
+}
+
+@Composable
+fun PersonListItem(index: Int, person: Person) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(12.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Image(
+                bitmap = person.representativeShot.asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(60.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop
+            )
+            
+            Spacer(modifier = Modifier.width(16.dp))
+            
+            Column {
+                Text(
+                    text = "Person $index",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "${person.appearanceCount} appearances",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            
+            Spacer(modifier = Modifier.weight(1f))
+            
+            Surface(
+                color = MaterialTheme.colorScheme.primaryContainer,
+                shape = CircleShape
+            ) {
+                Text(
+                    text = String.format(Locale.getDefault(), "%.0f%%", person.representativeQualityScore * 100),
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
             }
         }
     }
